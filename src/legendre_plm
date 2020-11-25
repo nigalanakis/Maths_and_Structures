@@ -1,0 +1,54 @@
+''' Function _plm '''
+
+'''
+Calculates the associated Legendre polynomials of order l_max for all possible
+m values utilizing the numba library.
+
+Input:
+    l_max:
+        Integer
+        The maximum order of the polynomials
+        
+    theta:
+        Float
+        The angle for which the polynomials are calculated
+
+Outpout
+    plm:
+        Float array
+        Dimension (l_max+1,l_max+1)
+        The associated Legendre polynomials
+'''
+
+import numba as nb
+import numpy as np
+
+@nb.jit(nopython=True)
+def _plm(l_max,theta):
+    # Initializing polynomials array
+    plm = np.zeros((l_max+1,l_max+1),dtype=np.float_)
+    
+    # Calculating the sin, cosin, and cotangent for input angle theta
+    cos_t = np.cos(theta)
+    sin_t = np.sin(theta) 
+    cot_t = cos_t/sin_t
+    
+    # Calculating the first four polynomials p_00, p_10, p_11, p_21 that are required for the recursion relations
+    plm[0,0] =   1.0
+    plm[1,0] =   cos_t
+    plm[1,1] =  -sin_t
+    plm[2,1] =  -3.0*sin_t*cos_t
+    
+    # Using recursion relations to calculate polynomials up to l_max
+    # First we calculate the polynomials for m = 0, then for m = 1 and finally for all other m values
+    for l in range(2,l_max+1):
+        plm[l,0] = ((2.0*l-1.0)*cos_t*plm[l-1,0]-(l-1.0)*plm[l-2,0])/l
+    
+    for l in range(3,l_max+1):
+        plm[l,1] = ((2.0*l-1.0)*cos_t*plm[l-1,1]-l*plm[l-2,1])/(l-1.0)
+    
+    for l in range(2,l_max+1):
+        for m in range(2,l+1):
+            plm[l,m] = -2.0*(m-1.0)*cot_t*plm[l,m-1]-(l+m-1.0)*(l-m+2.0)*plm[l,m-2]
+                
+    return plm
