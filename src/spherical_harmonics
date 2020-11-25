@@ -1,0 +1,88 @@
+''' Function _ylm '''
+
+'''
+Calculates the spherical harmonics of order l_max for all possible m values
+
+Input:
+    l_max:
+        Integer
+        The maximum order of the spherical harmonics
+    
+    rab:
+        Float array
+        Dimension (3)
+        The position vector for the point of interest
+        
+    dab:
+        Float
+        The distance for the point of interest
+        
+Output:
+    ylm:
+        Float array
+        Dimension (l_max+1,l_max+1)
+        The sprherical harmonics for the point of interest
+'''
+
+import numba as nb
+import numpy as np
+from legendre_plm import _plm
+
+@nb.jit(nopython=True)
+def _ylm(l_max,rab,dab):
+    # Calculate spherical harmonics coefficients 
+    clm = np.zeros((l_max+1,l_max+1),dtype=np.float_)
+    
+    # Setting coefficients for m=0 
+    for l in range(l_max+1):
+        clm[l,0] = 0.5*np.sqrt((2.0*l+1)/np.pi)
+    
+    # Use recursion relations to calculate coefficients for m>0
+    for l in range(1,l_max+1):
+        for m in range(1,l+1):
+            clm[l,m] = -clm[l,m-1]/np.sqrt((l+m)*(l-m+1.0))
+    
+    # Caclulating angle theta 
+    cos_t = rab[2]/dab
+    if (cos_t > 1.0):
+        cos_t = 1.0
+    elif (cos_t < -1.0):
+        cos_t = -1.0
+    sin_t = np.sqrt(1.0 - cos_t*cos_t)
+    theta = np.arccos(cos_t)
+    
+    # Initializing real spherical harmonics
+    ylm = np.zeros((l_max+1,2*l_max+1),dtype=np.float_)
+    
+    if (sin_t != 0):
+        #  Calculating angle phi for links not located on the poles
+        if (rab[0] == 0 and rab[1] > 0):
+            phi = np.pi/2.0
+        elif (rab[0] == 0 and rab[1] < 0):
+            phi = -np.pi/2.0
+        else:
+            phi = np.arctan(rab[1]/rab[0])
+            
+        if (rab[0] < 0):
+            phi = phi + np.pi
+                    
+        # Calculate asociate Legendre polynomials
+        plm = _plm(l_max,theta)                    
+        
+        # Calculating real spherical harmonics
+        for l in range (0,l_max+1):
+            for m in range(-l,l+1):
+                if (m < 0):
+                    ylm[l,m] = np.sqrt(2.0)*clm[l,-m]*plm[l,-m]*np.sin(-m*phi)
+                elif (m == 0):
+                    ylm[l,0] = clm[l,0]*plm[l,0]
+                else:
+                    ylm[l,m] = np.sqrt(2.0)*clm[l,m]*plm[l,m]*np.cos(m*phi) 
+    else:
+        # For links on the poles:
+        # If m != 0 all spherical harmonics are zero
+        # If m == 0 the spherical harmonics are equal to clm 
+        phi = 0.0
+        ylm[:,0] = clm[:,0]
+              
+    return ylm
