@@ -1,0 +1,56 @@
+''' Function _order_parameters '''
+
+'''
+Calculates the Steinhardt order parameters for a reference atom with N neighbours
+
+Input:
+    l_max:
+        Integer
+        The maximum order of the spherical harmonics
+        
+    N:
+        Integer
+        The number of neighbours
+        
+    bv:
+        Float array
+        Dimension (N)
+        The position vectors of the neighbours
+'''
+
+import numba as nb
+import numpy as np
+from spherical_harmonics import _ylm
+
+@nb.jit(nopython=True)
+def _order_parameters(l_max,N,bv):    
+    # Initializing useful arrays
+    ql     = np.zeros((l_max+1),dtype=np.float_)
+    qlm    = np.zeros((l_max+1,2*l_max+1),dtype=np.float_)
+    qlm_sq = np.zeros((l_max+1,2*l_max+1),dtype=np.float_)
+        
+    # Looping over all the neighbours
+    for i in range(N):
+        # Calculate the distances of neighbour i from the reference atom
+        rab = bv[i,:]
+        dab = np.sqrt(np.dot(rab,rab)) 
+            
+        # Calculating real spherical harmonics
+        ylm = _ylm(l_max,rab,dab)
+                 
+        # Summing real spherical harmonics for all neighbours
+        for l in range(l_max+1):
+            for m in range(-l,l+1):
+                qlm[l,m] += ylm[l,m]
+                                                
+    # Calculating first kind Steinhardt order parameters and their squares
+    qlm    = qlm/N   
+    qlm_sq = qlm**2 
+        
+    # Calculating second kind Steinhardt order parameters
+    for l in range(l_max+1):
+        for m in range(-l,l+1):
+            ql[l] += qlm_sq[l,m]
+        ql[l] = np.sqrt(4.0*np.pi*ql[l]/(2.0*l+1))
+                                                 
+    return ql, qlm
