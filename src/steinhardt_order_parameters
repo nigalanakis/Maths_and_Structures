@@ -23,7 +23,7 @@ import numpy as np
 from spherical_harmonics import _ylm
 
 @nb.jit(nopython=True)
-def _order_parameters(l_max,N,bv):    
+def _sop(l_max,N,bv):    
     # Initializing useful arrays
     ql     = np.zeros((l_max+1),dtype=np.float_)
     qlm    = np.zeros((l_max+1,2*l_max+1),dtype=np.float_)
